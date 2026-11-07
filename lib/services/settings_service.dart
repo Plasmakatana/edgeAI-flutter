@@ -9,6 +9,7 @@ class SettingsService {
 
   static const String _themeKey = 'theme_mode';
   static const String _ttsKey = 'tts_enabled';
+  static const String _semanticKey = 'semantic_search';
 
   /// In-memory theme that the UI listens to for live updates.
   final ValueNotifier<ThemeMode> themeMode = ValueNotifier(ThemeMode.system);
@@ -16,11 +17,15 @@ class SettingsService {
   /// Whether audio (text-to-speech) responses are enabled.
   final ValueNotifier<bool> ttsEnabled = ValueNotifier(true);
 
+  /// Whether the optional semantic retrieval layer is enabled.
+  final ValueNotifier<bool> semanticSearch = ValueNotifier(false);
+
   /// Loads persisted settings from disk.
   Future<void> load() async {
     final prefs = await SharedPreferences.getInstance();
     themeMode.value = _themeModeFromName(prefs.getString(_themeKey));
     ttsEnabled.value = prefs.getBool(_ttsKey) ?? true;
+    semanticSearch.value = prefs.getBool(_semanticKey) ?? false;
   }
 
   /// Sets the app theme and persists the choice.
@@ -35,6 +40,13 @@ class SettingsService {
     ttsEnabled.value = enabled;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_ttsKey, enabled);
+  }
+
+  /// Enables/disables the optional semantic retrieval layer and persists it.
+  Future<void> setSemanticSearch(bool enabled) async {
+    semanticSearch.value = enabled;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_semanticKey, enabled);
   }
 
   ThemeMode _themeModeFromName(String? name) {

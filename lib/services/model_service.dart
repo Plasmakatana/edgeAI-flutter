@@ -5,6 +5,9 @@ import 'package:flutter_gemma/flutter_gemma.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import 'knowledge_library.dart';
+import 'prompt_builder.dart';
+
 /// Gemma 4 E2B model (4-bit quantized `litertlm` bundle, ~2.4GB).
 ///
 /// Hosted on HuggingFace by the litert-community org. This is the officially
@@ -97,6 +100,10 @@ class ModelService {
     return targetName;
   }
 
+  static const String _systemInstruction =
+      'You are a helpful, concise AI assistant running fully on-device. '
+      'Answer the user\'s questions directly and to the point.';
+
   /// Loads the configured active model and prepares a chat session.
   ///
   /// Must be called after either [downloadAndInstallModel] or
@@ -106,32 +113,88 @@ class ModelService {
       return;
     }
 
-    // maxTokens is the CONTEXT WINDOW (KV-cache budget), not the reply length.
-    // We cap output via maxOutputTokens on the session instead. For a 2B
-    // model on 4-5GB RAM a 1024-token context is a safe, memory-friendly
-    // default.
+    // maxTokens is the CONTEXT WINDOW (KV-cache budget), not the reply
+    // length. We cap output via maxOutputTokens on the session instead.
+    // 2048 (up from 1024) leaves room for retrieved library excerpts plus a
+    // few conversation turns; single grounded prompts are ~450 tokens, so a
+    // 1024 window starved prefill and threw FAILED_PRECONDITION errors.
     _model = await FlutterGemma.getActiveModel(
-      maxTokens: 1024,
+      maxTokens: 2048,
       preferredBackend: PreferredBackend.gpu, // falls back to CPU gracefully
       maxConcurrentSessions: 1,
     );
 
+    await _createChat();
+  }
+
+  Future<void> _createChat() async {
     _chat = await _model!.createChat(
       maxOutputTokens: 512, // cap reply length to keep generation bounded
+      tokenBuffer: 512, // generation headroom before history gets trimmed
       supportsFunctionCalls: true,
       toolChoice: ToolChoice.none,
-      systemInstruction:
-          'You are a helpful, concise AI assistant running fully on-device. '
-          'Answer the user\'s questions directly and to the point.',
+      systemInstruction: _systemInstruction,
     );
   }
 
+  /// Starts a fresh conversation, dropping native KV-cache/history state.
+  ///
+  /// Use for an explicit "new chat", or to recover a wedged native session
+  /// after an inference error (e.g. INTERNAL state failures poison every
+  /// later query until the session is recreated). Never throws.
+  Future<void> resetConversation() async {
+    if (_chat == null) {
+      return;
+    }
+    try {
+      await _chat!.clearHistory();
+      return;
+    } catch (_) {
+      // Fall through to a full session rebuild below.
+    }
+    try {
+      await _chat!.close();
+    } catch (_) {
+      // Best effort; the native handle may already be gone.
+    }
+    _chat = null;
+    if (_model != null) {
+      try {
+        await _createChat();
+      } catch (_) {
+        // Leave _chat null; the next send reloads the model from scratch.
+      }
+    }
+  }
+
   /// Streams the model's reply to [query], token by token.
-  Stream<String> generateResponse(String query) async* {
+  ///
+  /// When [context] (retrieved library excerpts) is non-empty, the query is
+  /// wrapped in a grounded prompt so the model answers from the documents.
+  ///
+  /// Every question gets a FRESH native session (fresh prefill): conversation
+  /// history is deliberately not accumulated in the on-device KV-cache, so
+  /// prefill input is always just the current prompt. Accumulated history
+  /// repeatedly exhausted the context window and wedged the session with
+  /// prefill errors that poisoned all later queries. Tradeoff: the model
+  /// answers each question standalone (no follow-up memory).
+  Stream<String> generateResponse(
+    String query, {
+    List<RetrievedChunk> context = const [],
+  }) async* {
     if (_chat == null) {
       throw StateError('Model is not loaded. Call loadModelForChat() first.');
     }
-    await _chat!.addQueryChunk(Message.text(text: query, isUser: true));
+    try {
+      await _chat!.clearHistory();
+    } catch (_) {
+      // If the reset itself fails, continue with the existing session; any
+      // resulting inference error triggers recovery in the caller.
+    }
+    final prompt = context.isEmpty
+        ? query
+        : buildGroundedPrompt(query: query, sources: context);
+    await _chat!.addQueryChunk(Message.text(text: prompt, isUser: true));
     await for (final response in _chat!.generateChatResponseAsync()) {
       if (response is TextResponse) {
         yield response.token;

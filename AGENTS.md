@@ -21,13 +21,21 @@ flutter build ios        # build iOS
 ## Structure
 
 - `lib/main.dart` — app entrypoint; initializes FlutterGemma, applies persisted theme
-- `lib/services/model_service.dart` — Gemma model lifecycle (download, locate, load, chat)
-- `lib/services/settings_service.dart` — persisted theme + TTS preferences (shared_preferences)
-- `lib/screens/home_screen.dart` — root landing screen (Start talking / download / locate)
+- `lib/services/model_service.dart` — Gemma model lifecycle (download, locate, load, chat); `generateResponse` accepts retrieved context
+- `lib/services/settings_service.dart` — persisted theme + TTS + semantic-search preferences (shared_preferences)
+- `lib/services/text_extractor.dart` — file → text (txt/md/csv/json/log, html, pdf, docx; rejects legacy .doc)
+- `lib/services/chunker.dart` — text → retrieval chunks (~700 chars, overlap)
+- `lib/services/retrieval.dart` — BM25 keyword layer + optional semantic layer (model embeddings, else n-gram fallback), top-5 ranking
+- `lib/services/knowledge_library.dart` — persisted document library (JSON) + retrieval entry point
+- `lib/services/embedder_service.dart` — optional Gecko-110M embedder install/index/query
+- `lib/services/prompt_builder.dart` — grounded-prompt assembly with context caps
+- `lib/screens/home_screen.dart` — root landing screen (Start talking / Add document / library / download / locate)
+- `lib/screens/library_screen.dart` — document library management + semantic-search enable flow
 - `lib/screens/download_screen.dart` — download/progress screen
-- `lib/screens/chat_screen.dart` — streaming chat UI + mic input (speech_to_text) + TTS replies
-- `lib/screens/settings_screen.dart` — theme picker + voice-reply toggle
-- `test/widget_test.dart` — widget tests
+- `lib/screens/chat_screen.dart` — streaming chat UI + mic input (speech_to_text) + TTS replies + library grounding
+- `lib/widgets/task_progress_dialog.dart` — modal progress-dialog helper for background tasks
+- `test/` — widget tests + unit tests (chunker, retrieval, prompt builder, extractor)
+- `integration_test/library_pipeline_test.dart` — on-device add/retrieve/remove pipeline test
 - `analysis_options.yaml` — lints (flutter_lints)
 - `pubspec.yaml` — dependencies
 - `PROGRESS.md` — running log of changes for future context
@@ -37,9 +45,11 @@ flutter build ios        # build iOS
 Runtime:
 - `flutter_gemma` + `flutter_gemma_litertlm` — model runtime
 - `file_picker`, `path_provider`, `path` — model location/copy
-- `speech_to_text` — mic / voice input
+- `  speech_to_text` — mic / voice input
 - `flutter_tts` — on-device text-to-speech replies
 - `shared_preferences` — persisted settings (theme, tts)
+- `syncfusion_flutter_pdf` — PDF text extraction (pure Dart)
+- `archive`, `xml` — docx unzip + parse
 
 ## Notes
 

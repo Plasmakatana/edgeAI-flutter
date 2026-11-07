@@ -42,9 +42,17 @@ dependencies:
   speech_to_text: ^7.0.0
   flutter_tts: ^4.2.0
   shared_preferences: ^2.3.0
+  syncfusion_flutter_pdf: ^35.1.39
+  archive: ^4.3.0
+  # >=7.0.1 for syncfusion_flutter_pdf, but capped so flutter_math_fork's
+  # flutter_svg chain (xml <=7.0.1) still resolves — lands on 7.0.1.
+  xml: ">=7.0.1 <8.0.0"
+  flutter_math_fork: ^0.7.4
 
 dev_dependencies:
   flutter_test:
+    sdk: flutter
+  integration_test:
     sdk: flutter
 
   # The "flutter_lints" package below contains a set of recommended lints to

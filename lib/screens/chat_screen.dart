@@ -1,10 +1,13 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_math_fork/flutter_math.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:speech_to_text/speech_recognition_result.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 
+import '../services/knowledge_library.dart';
+import '../services/math_segments.dart';
 import '../services/model_service.dart';
 import '../services/settings_service.dart';
 import 'settings_screen.dart';
@@ -25,6 +28,10 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _isGenerating = false;
   String _bufferedReply = '';
 
+  /// How many library excerpts grounded the latest reply (0 = plain chat).
+  int _lastSourceCount = 0;
+  bool _libraryAvailable = false;
+
   final SpeechToText _speech = SpeechToText();
   bool _isListening = false;
   bool _speechAvailable = false;
@@ -37,6 +44,41 @@ class _ChatScreenState extends State<ChatScreen> {
     _initModel();
     _initSpeech();
     _initTts();
+    _initLibrary();
+  }
+
+  /// Checks whether the document library has anything to retrieve from, so
+  /// the chat can show a hint and skip retrieval work when it is empty.
+  Future<void> _initLibrary() async {
+    try {
+      await KnowledgeLibrary.instance.load();
+      if (mounted) {
+        setState(() {
+          _libraryAvailable = KnowledgeLibrary.instance.totalChunks > 0;
+        });
+      }
+    } catch (_) {
+      // Library unavailable (e.g. tests): plain chat continues to work.
+    }
+  }
+
+  /// Retrieves the top library excerpts for [text]. Never throws: on any
+  /// failure the chat degrades to a plain (non-grounded) reply.
+  Future<List<RetrievedChunk>> _retrieveContext(String text) async {
+    try {
+      final library = KnowledgeLibrary.instance;
+      await library.load();
+      if (library.totalChunks == 0) return const [];
+      if (mounted) {
+        setState(() => _libraryAvailable = true);
+      }
+      return await library.retrieve(
+        text,
+        semantic: SettingsService.instance.semanticSearch.value,
+      );
+    } catch (_) {
+      return const [];
+    }
   }
 
   Future<void> _initModel() => _ensureModelLoaded();
@@ -92,11 +134,31 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _speak(String text) async {
     if (!SettingsService.instance.ttsEnabled.value) return;
+    // Never read raw LaTeX commands aloud ("backslash left ...").
+    final speakable = stripMathForSpeech(text);
+    if (speakable.isEmpty) return;
     try {
       await _tts.stop();
-      await _tts.speak(text);
+      await _tts.speak(speakable);
     } catch (_) {
       // TTS is best-effort; ignore failures (e.g. no engine installed).
+    }
+  }
+
+  /// Clears the visible messages and restarts the native conversation so a
+  /// fresh KV-cache/history is used from here on.
+  Future<void> _newChat() async {
+    if (_isGenerating) return;
+    setState(() {
+      _messages.clear();
+      _bufferedReply = '';
+      _lastSourceCount = 0;
+    });
+    await ModelService.instance.resetConversation();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Started a new conversation.')),
+      );
     }
   }
 
@@ -156,23 +218,37 @@ class _ChatScreenState extends State<ChatScreen> {
       return;
     }
 
+    // Ground the reply in the document library when it has anything to
+    // offer (keyword search always, plus the semantic layer if enabled).
+    final sources = await _retrieveContext(text);
+
     setState(() {
       _messages.add(_Message(text: text, isUser: true));
       _bufferedReply = '';
       _isGenerating = true;
+      _lastSourceCount = sources.length;
     });
     _scrollToBottom();
 
     try {
-      final stream = ModelService.instance.generateResponse(text);
+      final stream =
+          ModelService.instance.generateResponse(text, context: sources);
       await for (final chunk in stream) {
         if (!mounted) return;
         setState(() {
           _bufferedReply += chunk;
           if (_messages.isNotEmpty && !_messages.last.isUser) {
-            _messages.last = _Message(text: _bufferedReply, isUser: false);
+            _messages.last = _Message(
+              text: _bufferedReply,
+              isUser: false,
+              sources: sources,
+            );
           } else {
-            _messages.add(_Message(text: _bufferedReply, isUser: false));
+            _messages.add(_Message(
+              text: _bufferedReply,
+              isUser: false,
+              sources: sources,
+            ));
           }
         });
         _scrollToBottom();
@@ -192,6 +268,10 @@ class _ChatScreenState extends State<ChatScreen> {
           }
         });
       }
+      // A native inference failure can wedge the session so every later
+      // query fails too — restart the conversation so the next send starts
+      // from a fresh native session.
+      await ModelService.instance.resetConversation();
     }
 
     if (mounted) {
@@ -208,6 +288,11 @@ class _ChatScreenState extends State<ChatScreen> {
         // Automatic back arrow appears because this screen is pushed onto the
         // navigation stack from the home screen.
         actions: [
+          IconButton(
+            icon: const Icon(Icons.restart_alt_outlined),
+            tooltip: 'New chat',
+            onPressed: _isGenerating ? null : _newChat,
+          ),
           // Voice reply toggle indicator (shows whether audio is on).
           ValueListenableBuilder<bool>(
             valueListenable: SettingsService.instance.ttsEnabled,
@@ -254,6 +339,20 @@ class _ChatScreenState extends State<ChatScreen> {
                         _MessageBubble(message: _messages[index]),
                   ),
           ),
+          if (_libraryAvailable)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                _lastSourceCount > 0
+                    ? 'Answering from $_lastSourceCount library excerpt'
+                        '${_lastSourceCount == 1 ? '' : 's'}'
+                    : 'Document library ready — ask about your files',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).colorScheme.secondary,
+                ),
+              ),
+            ),
           _InputBar(
             controller: _controller,
             enabled: !_isGenerating,
@@ -274,9 +373,16 @@ class _ChatScreenState extends State<ChatScreen> {
 // ---------------------------------------------------------------------------
 
 class _Message {
-  const _Message({required this.text, required this.isUser});
+  const _Message({
+    required this.text,
+    required this.isUser,
+    this.sources = const [],
+  });
   final String text;
   final bool isUser;
+
+  /// Library excerpts this reply was grounded in (assistant only).
+  final List<RetrievedChunk> sources;
 }
 
 class _MessageBubble extends StatelessWidget {
@@ -286,6 +392,9 @@ class _MessageBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isUser = message.isUser;
+    final color = isUser
+        ? Theme.of(context).colorScheme.onPrimaryContainer
+        : Theme.of(context).colorScheme.onSurface;
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
@@ -300,15 +409,101 @@ class _MessageBubble extends StatelessWidget {
               : Theme.of(context).colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(16),
         ),
-        child: SelectableText(
-          message.text,
-          style: TextStyle(
-            color: isUser
-                ? Theme.of(context).colorScheme.onPrimaryContainer
-                : Theme.of(context).colorScheme.onSurface,
-          ),
-        ),
+        child: isUser
+            ? SelectableText(
+                message.text,
+                style: TextStyle(color: color),
+              )
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _AssistantText(text: message.text, color: color),
+                  if (message.sources.isNotEmpty)
+                    _SourcesView(
+                      sources: message.sources,
+                      color: color,
+                    ),
+                ],
+              ),
       ),
+    );
+  }
+}
+
+/// Expandable list of the library excerpts a reply was grounded in, so users
+/// can verify what the model actually used (and report retrieval misses).
+class _SourcesView extends StatelessWidget {
+  const _SourcesView({required this.sources, required this.color});
+  final List<RetrievedChunk> sources;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final metaStyle = TextStyle(
+      color: color.withValues(alpha: 0.75),
+      fontSize: 12,
+    );
+    return ExpansionTile(
+      dense: true,
+      tilePadding: EdgeInsets.zero,
+      childrenPadding: EdgeInsets.zero,
+      title: Text(
+        'Sources (${sources.length})',
+        style: metaStyle.copyWith(fontWeight: FontWeight.w600),
+      ),
+      children: [
+        for (var i = 0; i < sources.length; i++)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              '[${i + 1}] (${sources[i].documentName})\n'
+              '${sources[i].text}',
+              style: metaStyle,
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// Assistant text with LaTeX math (`$…$`, `$$…$$`, `\(…\)`, `\[…\]`)
+/// rendered as real equations. Unparseable math falls back to plain text.
+class _AssistantText extends StatelessWidget {
+  const _AssistantText({required this.text, required this.color});
+  final String text;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final baseStyle = TextStyle(color: color, fontSize: 15, height: 1.35);
+    final segments = parseMathSegments(text);
+    if (segments.length == 1 && !segments.first.isMath) {
+      return SelectableText(text, style: baseStyle);
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (final segment in segments)
+          if (segment.isMath)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Math.tex(
+                segment.text,
+                mathStyle: segment.displayMode
+                    ? MathStyle.display
+                    : MathStyle.text,
+                textStyle: baseStyle,
+                onErrorFallback: (_) => SelectableText(
+                  segment.text,
+                  style: baseStyle.copyWith(fontFamily: 'monospace'),
+                ),
+              ),
+            )
+          else
+            SelectableText(segment.text, style: baseStyle),
+      ],
     );
   }
 }

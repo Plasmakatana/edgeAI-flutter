@@ -9,6 +9,8 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await FlutterGemma.initialize(
     inferenceEngines: [LiteRtLmEngine()],
+    // Opt-in: needed for the library's semantic (embedding) retrieval layer.
+    embeddingBackends: [LiteRtEmbeddingBackend()],
   );
   await SettingsService.instance.load();
   runApp(const MyApp());

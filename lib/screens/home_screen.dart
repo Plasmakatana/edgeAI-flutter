@@ -1,8 +1,15 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
+import '../services/embedder_service.dart';
+import '../services/knowledge_library.dart';
 import '../services/model_service.dart';
+import '../services/settings_service.dart';
+import '../services/text_extractor.dart';
+import '../widgets/task_progress_dialog.dart';
 import 'chat_screen.dart';
 import 'download_screen.dart';
+import 'library_screen.dart';
 import 'settings_screen.dart';
 
 /// Landing screen. Shows "start talking" when a model is installed, or the
@@ -16,6 +23,8 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   bool? _modelInstalled;
+  int _docCount = 0;
+  bool _addingDocument = false;
 
   @override
   void initState() {
@@ -30,8 +39,18 @@ class _HomeScreenState extends State<HomeScreen> {
     } catch (_) {
       installed = false;
     }
+    var docCount = 0;
+    try {
+      await KnowledgeLibrary.instance.load();
+      docCount = KnowledgeLibrary.instance.documents.length;
+    } catch (_) {
+      // Plugins unavailable (tests): keep the library count at zero.
+    }
     if (mounted) {
-      setState(() => _modelInstalled = installed);
+      setState(() {
+        _modelInstalled = installed;
+        _docCount = docCount;
+      });
     }
   }
 
@@ -68,6 +87,63 @@ class _HomeScreenState extends State<HomeScreen> {
         MaterialPageRoute(builder: (_) => const ChatScreen()),
       );
     }
+  }
+
+  /// Picks a text/PDF/Word file and adds it to the document library.
+  Future<void> _onAddDocument() async {
+    if (_addingDocument) return;
+    final picked = await FilePicker.pickFile(
+      dialogTitle: 'Select a document',
+      type: FileType.custom,
+      allowedExtensions: TextExtractor.pickableExtensions,
+    );
+    if (picked == null) return; // user cancelled
+    if (picked.path == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not access that file.')),
+        );
+      }
+      return;
+    }
+    setState(() => _addingDocument = true);
+    try {
+      final embed = SettingsService.instance.semanticSearch.value &&
+          EmbedderService.instance.isReady;
+      final doc = await runWithProgressDialog(
+        // ignore: use_build_context_synchronously
+        context,
+        title: 'Adding document',
+        task: (report) => KnowledgeLibrary.instance.addDocumentFromFile(
+          picked.path!,
+          embed: embed,
+          onProgress: (stage) => report(stage),
+        ),
+      );
+      if (!mounted) return;
+      setState(
+        () => _docCount = KnowledgeLibrary.instance.documents.length,
+      );
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Added "${doc.name}" (${doc.chunkCount} chunks).')),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not add file: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _addingDocument = false);
+    }
+  }
+
+  Future<void> _openLibrary() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const LibraryScreen()),
+    );
+    if (!mounted) return;
+    setState(() => _docCount = KnowledgeLibrary.instance.documents.length);
   }
 
   @override
@@ -132,6 +208,29 @@ class _HomeScreenState extends State<HomeScreen> {
                       style:
                           TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                     ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                OutlinedButton.icon(
+                  onPressed: _addingDocument ? null : _onAddDocument,
+                  icon: const Icon(Icons.upload_file),
+                  label: const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    child: Text(
+                      'Add document',
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextButton.icon(
+                  onPressed: _openLibrary,
+                  icon: const Icon(Icons.folder_open),
+                  label: Text(
+                    _docCount == 0
+                        ? 'Document library'
+                        : 'Document library ($_docCount)',
                   ),
                 ),
               ] else ...[
