@@ -48,6 +48,12 @@ dependencies:
   # flutter_svg chain (xml <=7.0.1) still resolves — lands on 7.0.1.
   xml: ">=7.0.1 <8.0.0"
   flutter_math_fork: ^0.7.4
+  # MediaWiki/Wikipedia content packs + map tile downloads.
+  http: ^1.5.0
+  # SHA-256 verification for downloadable content packs.
+  crypto: ^3.0.7
+  flutter_map: ^8.3.2
+  latlong2: ^0.10.1
 
 dev_dependencies:
   flutter_test:
@@ -72,6 +78,10 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  # Bundled offline content packs (seeded on first launch) and pack catalog.
+  assets:
+    - assets/packs/
 
   # To add assets to your application, add an assets section, like this:
   # assets:

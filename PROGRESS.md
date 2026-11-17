@@ -314,3 +314,267 @@ text. Full suite **36/36 passing**, `flutter analyze` clean. Rebuilt +
 `adb install -r`, launched clean on R5CT61HDK8L, no errors in logcat.
 Next: get the failing query + shown sources from the user to pinpoint the
 layer at fault.
+
+## Session — Offline content packs, Wikipedia knowledge, offline maps (2026-11-07)
+
+Approved multi-phase feature:
+- Small curated "core" content pack bundled in the APK and seeded on first
+  launch; larger packs downloaded on demand (user-initiated, with progress).
+- Wikipedia/Wikibooks/Wikivoyage pages fetched on demand via the MediaWiki API
+  into the existing chunk/embed library; curated original summaries + public
+  domain sources for practical/medical/emergency content, with citations and
+  disclaimers.
+- `flutter_map` offline map viewer with OSM tiles, region downloads, TTL +
+  size-capped LRU cleanup (14-day transient TTL, 180-day region TTL, 1 GB cap,
+  optional per-region pins).
+
+### Phase 1 — library foundation
+
+- NEW `lib/services/embedding_codec.dart`: little-endian float32
+  encode/decode for chunk embeddings; rejects ragged/truncated data.
+- `lib/services/knowledge_library.dart`:
+  - `LibraryDocument` gains `packId`, `packDocId`, `license`, `sourceUrl`,
+    `attribution`, `isBuiltIn`, plus `embeddingFile`/`embeddingDim`/
+    `embeddingCount`. All persisted as optional JSON fields (old files load
+    unchanged).
+  - Embeddings moved out of `library.json` into per-document float32 sidecars
+    under `documents/knowledge/embeddings/<id>.f32`; legacy inline
+    `embeddings` arrays still parse and migrate on the next save.
+  - Embeddings hydrate lazily on the first semantic retrieval, not at startup.
+  - NEW `LibraryEntry` + `addDocumentsFromEntries(...)`: batch chunk/embed/
+    upsert with progress callbacks and a single library write. Document IDs
+    can be stable (`pack:<packId>:<docId>`); same-ID entries replace old ones.
+  - NEW `replacePackDocuments(...)` (upserts and drops docs removed from an
+    upgraded pack) and `removePack(packId)` (never touches user docs).
+  - `addDocumentFromFile(...)` now delegates to the batch path.
+  - Sidecars are deleted on document/pack removal and `clear()`.
+  - NEW per-revision retrieval index cache: flattened chunks, chunk owners,
+    and pre-tokenized chunks are reused until the library revision changes.
+  - Semantic retrieval no longer requires *every* document to have
+    embeddings: missing vectors contribute an empty vector (cosine 0) so the
+    layer still works with partially indexed libraries.
+- `lib/services/retrieval.dart`: `keywordScores`/`rankChunks` accept optional
+  `tokenizedChunks` so callers can reuse the cached tokenization.
+- NEW tests:
+  - `test/embedding_codec_test.dart` (4) — round-trip, empty, ragged,
+    truncated.
+  - `test/library_document_test.dart` (3) — metadata JSON round-trip, legacy
+    inline embeddings, user-doc defaults.
+  - `test/retrieval_test.dart` +2 — cached tokenization matches fresh scoring;
+    partial embeddings disable only the missing chunk.
+- Fixed analyzer warning for an unnecessary `!` in the new partial-embedding
+  path.
+- `flutter analyze` clean; 24 targeted tests passing.
+
+### Phase 2 — bundled + downloadable content packs
+
+- `pubspec.yaml`:
+  - Added direct dependencies `http: ^1.5.0` and `crypto: ^3.0.7` (Wikipedia
+    downloads and optional SHA-256 verification).
+  - Registered `assets: - assets/packs/` so bundled packs ship in the APK.
+- NEW `assets/packs/catalog.json`: pack catalog (`core` bundled asset pack,
+  `wikipedia-essentials` Wikimedia API pack with size/license/attribution).
+- NEW `assets/packs/core_v1.json`: 19 curated core documents (medical
+  disclaimer, first aid basics, CPR/AED, choking, severe bleeding, burns,
+  heat/cold, water purification, food safety, fire safety, shelter/warmth,
+  navigation without GPS, emergency signals, emergency kit,
+  hygiene/sanitation, poisoning, severe allergic reaction, weather hazards,
+  emergency plan), each with source URL/license/attribution.
+- NEW `assets/packs/wikipedia_essentials_titles.json`: ~84 categorized article
+  titles (health, science, geography, practical skills, general knowledge).
+- NEW `lib/services/wikimedia_client.dart`: MediaWiki Action API
+  `prop=extracts&explaintext=1` client; deduplicates titles, fetches one full
+  extract per request (the API caps full `exlimit` at 1; multi-title batching
+  remains supported and now backfills titles the API omitted), retries
+  5xx/429 with backoff, fails fast on other 4xx, strips `missing`/empty
+  pages, truncates >20k-char articles at a paragraph boundary, decodes UTF-8
+  explicitly, sends a custom User-Agent, dedupes pages across requests.
+- NEW `lib/services/content_pack_service.dart`:
+  - Models `ContentPack`, `ContentPackDocument`, `ContentPackFile`,
+    `ContentPackInstallResult`, `ContentPackSource {asset, wikimedia, url}`.
+  - `loadCatalog()` (cached), `seedBundled()` (installs bundled packs once per
+    version on launch; remembers explicit removal), `installPack()` (asset,
+    Wikipedia, or URL source; optional SHA-256 check; progress mapping),
+    `removePack()`, `installedVersion()`.
+  - Pack text is ingested through `replacePackDocuments` →
+    chunk/embed pipeline with stable IDs `pack:<packId>:<docId>`; metadata
+    (license, source URL, attribution, `isBuiltIn`) is preserved.
+- `lib/services/knowledge_library.dart`:
+  - Batch embedding progress is now chunk-level (`doneChunks`/`totalChunks`)
+    so the pack install dialog can show real progress.
+  - Added `@visibleForTesting` `debugDocumentsDirectory` and `resetForTest()`
+    so pack/seed tests run without the path_provider plugin.
+  - `RetrievedChunk` gains optional `sourceUrl` / `license`, populated from the
+    owning document, so chat can show citations.
+- `lib/screens/offline_content_screen.dart` (NEW):
+  - Catalog cards with bundled/installed/update status, size, license and
+    chunk counts.
+  - Install/reinstall/remove flows with modal progress; optional embedder
+    download prompt when semantic search is on; "Install text only" fallback.
+  - Per-pack sources/license dialog; global health/emergency disclaimer;
+    library totals + "Index now" re-index action.
+- `lib/screens/home_screen.dart`: added "Offline content" entry point (also
+  available before the model is downloaded); body is now
+  `LayoutBuilder` + `SingleChildScrollView` to avoid overflow with the extra
+  action.
+- `lib/screens/library_screen.dart`: app-bar shortcut to the offline content
+  catalog.
+- `lib/main.dart`: after FlutterGemma + settings init, calls
+  `ContentPackService.instance.seedBundled()` (failure-tolerant) so the
+  bundled core pack exists on first launch.
+- `lib/screens/chat_screen.dart`: source excerpts now include the original
+  URL when known.
+- NEW tests:
+  - `test/wikimedia_client_test.dart` (7) — parsing/URLs, dedupe, 5xx retry,
+    no retry on 403, per-title fallback, incomplete-batch backfill,
+    truncation.
+  - `test/content_pack_service_test.dart` (8) — catalog parsing, actual
+    catalog contents, bundled title asset, first-launch seeding, removal
+    remembered across seeds, explicit reinstall, user docs untouched by pack
+    removal.
+- `flutter analyze` clean; 15 new tests passing (Phase 2 targeted run).
+
+### Phase 3 — offline map viewer + tile cache lifecycle
+
+- `pubspec.yaml`: added `flutter_map: ^8.3.2` and `latlong2: ^0.10.1`
+  (`flutter pub add flutter_map latlong2`; pulls dart_earcut, proj4dart,
+  uuid, etc. transitively).
+- NEW `lib/services/tile_math.dart`: Web-Mercator helpers — lon/lat ↔ tile
+  x/y (clamped to valid range/±85.0511°), `TileCoord`/`TileRange`,
+  `tileRangeForBounds`, `tileCountForBounds`, cache-key parsing, tile URL
+  template substitution, and a ~15 KB/tile size estimate.
+- NEW `lib/services/map_service.dart`:
+  - `MapRegion` (name, N/S/E/W bounds, zoom range, tile source template,
+    downloaded date, tile/byte/failed counts, `keepOffline` pin) with JSON
+    round-trip; `formatBytes` helper.
+  - Cache root `<appSupport>/map_cache` with `tiles/<sourceId>/<z>/<x>/<y>.tile`,
+    `regions.json`, and `tile_access.json`. Source id = first 12 hex chars of
+    SHA-1 of the URL template, so switching providers does not mix tiles.
+  - `cachedTile`/`fetchTile`/`tileBytes`: cache-first reads, disk writes,
+    debounced access-timestamp flushes, shared HTTP client, 20 s timeout,
+    identifiable User-Agent, `Accept: image/*`.
+  - Downloaded-region flow: enumerates tiles across the zoom range (20k tile
+    safety limit), resumes by skipping existing files, 2 workers with an
+    80 ms delay, 429-abort handling, progress callback, persists region
+    metadata, then triggers cleanup.
+  - `setRegionKeepOffline`, `deleteRegion` (drops the region id from shared
+    tile access entries; deletes files only when no region still references
+    them), `clearCache`.
+  - Lifecycle: transient tiles expire after 14 days, downloaded-region tiles
+    after 180 days; pinned regions exempt; 1 GB cap with oldest-first
+    eviction down to 800 MB; any tile accessed in the last hour is spared.
+  - Cleanup scans/deletes in `Isolate.run` via `runMapCacheCleanup`, rewrites
+    the access index, and merges access timestamps recorded during the scan.
+  - Cleanup hooks: app start (from `main`), map screen resume, after region
+    download/pin changes, and every 300 tile writes when over the cap.
+  - `@visibleForTesting` root override/reset for tests.
+- NEW `lib/services/offline_tile_provider.dart`: flutter_map
+  `TileProvider`/`ImageProvider` bridge that loads from `MapService` (cache
+  first, then network) and decodes with `ImmutableBuffer`/`decode`.
+- NEW `lib/screens/map_screen.dart`:
+  - `FlutterMap` viewer (zoom 2–19, world start) with the disk-cached tile
+    provider, OSM attribution/policy banner, and current tile-source updates.
+  - "Download this area": dialog with region name, live zoom `RangeSlider`,
+    tile count/size estimate, 20k-tile guard, and "Keep offline" pin.
+  - Downloaded-regions bottom sheet: pin/unpin, delete with confirmation,
+    tap to fit camera to bounds, cache size summary, clear-cache action.
+  - App lifecycle observer flushes access timestamps on pause and runs
+    cleanup on resume.
+- `lib/services/settings_service.dart`: persisted `mapTileUrl` notifier
+  (default OSM `https://tile.openstreetmap.org/{z}/{x}/{y}.png`), URL
+  validation (`{z}`/`{x}`/`{y}` + http(s)) and setter.
+- `lib/screens/settings_screen.dart`: "Offline map" section with an editable
+  tile URL template, Save/Reset actions, validation, and a policy note.
+- `lib/screens/home_screen.dart`: added "Offline map" entry point.
+- `lib/main.dart`: after `runApp`, initializes `MapService` (startup TTL/cap
+  cleanup) without blocking the first frame; failures are logged.
+- `lib/services/content_pack_service.dart`: bundled seeding now only embeds
+  when semantic search is enabled *and* the embedder is installed, keeping
+  first launch fast.
+- `lib/services/knowledge_library.dart`: (Phase 2 support) test directory
+  override/reset hook; `RetrievedChunk` source URL/license fields.
+- Follow-up hardening:
+  - `WikimediaClient` now fetches one full extract per request (the API caps
+    full `exlimit` at 1) and backfills any titles a multi-title batch omitted,
+    deduping pages across requests; this fixes silently missing articles in
+    downloaded Wikipedia packs.
+  - `MapService.initialize()` clears its in-flight future on failure so the
+    map screen's Retry button can recover; background cap cleanup/access
+    flushes are error-guarded (no unhandled async errors).
+  - Region-sheet/download paths refresh pack versions after install/remove,
+    and pack action rows use `Wrap` to avoid overflow on narrow screens.
+- NEW tests:
+  - `test/tile_math_test.dart` (8) — world/center/edge mappings, center
+    round-trips, ranges/counts, invalid bounds, cache keys, URL substitution.
+  - `test/map_cleanup_test.dart` (5) — TTL expiry vs pinned/recent/grace,
+    LRU eviction to target, pinned exempt from cap, stale index entries,
+    missing directory.
+  - `test/map_service_test.dart` (3) — stable source ids, isolate cleanup on
+    initialize, region JSON round-trip.
+  - `test/content_pack_service_test.dart` +1 — Wikipedia title asset is
+    bundled and categorized.
+- Ran `dart format` on all touched Dart files.
+- Validation: `flutter analyze` clean; full suite **76/76 passing**;
+  `flutter build apk` succeeded (`build/app/outputs/flutter-apk/
+  app-release.apk`, 168.2 MB).
+- On-device smoke test not possible this session: `R5CT61HDK8L` reported
+  "not authorized" (USB debugging prompt pending on the phone). Next: accept
+  the prompt and verify map browsing, region download, pin/delete, and
+  startup cleanup on the device.
+- Caveats: default OSM tiles are subject to the OSM tile usage policy (UI
+  notes this; template is configurable). Tile templates support `{z}/{x}/{y}`
+  only. Region metadata is kept until manually deleted; only its tiles are
+  TTL-expired. Overlapping regions share tile references; deleting one keeps
+  tiles another region still uses.
+
+### Session - OSM block diagnosis, final hardening, device checks, report
+
+- Device `R5CT61HDK8L` became authorized. Installed an earlier build and
+  verified: app launch, local model chat, core pack seeding (`Document
+  library (23)`), chat grounding (`Answering from 5 library excerpts`), map
+  rendering with OpenStreetMap.de (Bhopal), and a 312-tile region download
+  (progress observed; region-list completion not conclusively confirmed).
+- Diagnosed map tile failure: `tile.openstreetmap.org` returned HTTP 200 with
+  an `x-blocked` header and an "Access blocked" PNG. The app had been caching
+  it as a tile. Root cause and fixes:
+  - `MapService.defaultTileUrl` now
+    `https://tile.openstreetmap.de/{z}/{x}/{y}.png`; added
+    `legacyOsmTileUrl` for migration.
+  - `SettingsService.load` migrates the exact legacy URL to the new default.
+  - `MapService.fetchTile` rejects non-image content types and any non-empty
+    `x-blocked` header; empty bodies are rejected.
+  - `MapService._requestTile` retries network errors, HTTP 429, and HTTP 5xx
+    once after 400 ms (2 attempts, 20 s timeout each); permanent 4xx fails
+    immediately.
+  - `MapService.userAgent` now includes the public project URL; Wikimedia UA
+    updated similarly.
+  - `MapScreen` bottom controls use
+    `bottom: 16 + MediaQuery.paddingOf(context).bottom` so they clear the
+    Android navigation bar.
+  - Settings UI text now says OSM.de and "Reset to OSM.de"; map attribution
+    identifies `tile.openstreetmap.de`.
+- Wikimedia fix retained: full extracts are fetched one title per request,
+  omitted titles are backfilled individually, and pages are deduped across
+  requests (MediaWiki full `exlimit` is 1).
+- Added test seams: `MapService.debugHttpClient`. New tests:
+  - `test/map_service_test.dart` +2 - retries 503 then caches image; rejects
+    `x-blocked` responses without caching (now 5 tests).
+  - `test/settings_service_test.dart` (5) - default OSM.de, legacy migration,
+    custom URL preserved, invalid URL falls back, setter persists.
+  - Extended `integration_test/library_pipeline_test.dart` with a second test
+    for bundled catalog loading and map-cache initialization.
+- Validation: `flutter analyze` clean; full suite **83/83 passing**;
+  `flutter build apk` succeeded (168.2 MB, 176,379,232 bytes).
+- Final install attempt failed because ADB reported no attached device
+  (`adb devices` empty). Therefore safe-area controls, downloaded-regions
+  sheet, region persistence, airplane mode, Wikipedia pack install, and
+  embedder indexing remain unverified on device.
+- Added `REPORT.md` using the exact `SAMPLE_REPORT.md` headings, with project
+  subheadings, 55 references, 14 tables, 6 Mermaid figures, test/build/device
+  results, and an attribution matrix. `SAMPLE_REPORT.md` remains untracked.
+- Updated `AGENTS.md` map default and test/report structure. All changes remain
+  uncommitted. Security follow-up: rotate the GitHub credential currently
+  embedded in the git remote URL; do not commit it.
+
+
+

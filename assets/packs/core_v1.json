@@ -1,0 +1,160 @@
+{
+  "id": "core",
+  "version": 1,
+  "name": "Offline essentials",
+  "license": "Original summaries based on public-domain guidance (ready.gov, CDC). See per-document attribution.",
+  "documents": [
+    {
+      "id": "medical-disclaimer",
+      "name": "Health and emergency disclaimer",
+      "text": "This offline guide is for general information only. It is not medical advice and does not replace trained professionals or emergency services. In an emergency, call your local emergency number immediately. Guidance can vary by country and by the situation. If you are unsure, contact a healthcare professional or emergency dispatcher. Do not delay emergency care to consult this app.",
+      "sourceUrl": "",
+      "license": "Original text",
+      "attribution": "Written for this app."
+    },
+    {
+      "id": "first-aid-basics",
+      "name": "First aid basics",
+      "text": "Before helping, make sure the scene is safe for you and the injured person. Call your local emergency number for any life-threatening problem. Check whether the person responds and is breathing normally. If they are unresponsive but breathing, place them in the recovery position on their side and monitor breathing. If they are not breathing normally, start CPR if trained and follow dispatcher instructions. Do not move someone with a suspected spinal injury unless there is immediate danger. Keep the person warm, reassure them, and do not give food or drink to someone who is unconscious or very drowsy. First aid training is strongly recommended; this summary is not a substitute. Based on widely published first-aid guidance.",
+      "sourceUrl": "https://www.redcross.org/take-a-class",
+      "license": "Original summary; see attribution",
+      "attribution": "Based on widely published first-aid guidance (American Red Cross and similar providers)."
+    },
+    {
+      "id": "cpr-and-aed",
+      "name": "CPR and AED basics",
+      "text": "For an adult who is unresponsive and not breathing normally, call emergency services and start chest compressions. Push hard and fast in the center of the chest at about 100-120 compressions per minute, roughly 5-6 cm deep, allowing the chest to come back up between pushes. If you are trained, give 30 compressions followed by 2 rescue breaths and repeat. Use an automated external defibrillator (AED) as soon as it is available and follow its voice prompts; do not touch the person while the AED analyzes or delivers a shock. Continue until emergency help takes over or the person starts breathing normally. CPR quality matters more than perfection. Take a certified course when possible.",
+      "sourceUrl": "https://www.redcross.org/take-a-class",
+      "license": "Original summary; see attribution",
+      "attribution": "Based on widely published CPR/AED guidance (American Red Cross and similar providers)."
+    },
+    {
+      "id": "choking",
+      "name": "Choking",
+      "text": "If someone is choking but can still cough or speak, encourage them to keep coughing. If they cannot breathe, speak, or cough effectively, call emergency services. For a conscious adult or child over one year, give up to 5 firm back blows between the shoulder blades, then up to 5 abdominal thrusts, and repeat until the object comes out or they become unconscious. For an infant under one year, give 5 back blows and 5 chest thrusts instead of abdominal thrusts. If the person becomes unconscious, start CPR and follow dispatcher instructions. See a medical professional afterwards because abdominal thrusts can cause internal injury.",
+      "sourceUrl": "https://www.redcross.org/take-a-class",
+      "license": "Original summary; see attribution",
+      "attribution": "Based on widely published first-aid guidance (American Red Cross and similar providers)."
+    },
+    {
+      "id": "severe-bleeding",
+      "name": "Severe bleeding",
+      "text": "Call emergency services for severe or uncontrolled bleeding. Apply firm, direct pressure to the wound with a clean cloth or dressing. Keep pressing; if blood soaks through, add more layers on top rather than removing them. If bleeding from an arm or leg is life-threatening and you are trained, apply a tourniquet 5-7 cm above the wound, tighten until bleeding stops, and record the time. Do not loosen a tourniquet once applied unless emergency personnel tell you to. Keep the person warm and lying down, treat for shock, and monitor breathing. Do not remove embedded objects; press around them instead.",
+      "sourceUrl": "https://www.redcross.org/take-a-class",
+      "license": "Original summary; see attribution",
+      "attribution": "Based on widely published first-aid guidance (American Red Cross and similar providers)."
+    },
+    {
+      "id": "burns",
+      "name": "Burns and scalds",
+      "text": "Stop the burning process and remove the person from the source. Cool the burn with cool running water for about 20 minutes; do not use ice. Remove jewelry and loose clothing near the area unless it is stuck to the burn. Cover the burn loosely with a clean, non-stick dressing. Do not pop blisters and do not apply butter, toothpaste, or home remedies. Seek emergency care for deep or large burns, burns to the face, hands, feet, joints or genitals, any burn with breathing problems, and electrical or chemical burns. For chemical burns, flush with plenty of water and follow the product instructions while calling emergency services.",
+      "sourceUrl": "https://www.redcross.org/take-a-class",
+      "license": "Original summary; see attribution",
+      "attribution": "Based on widely published first-aid guidance (American Red Cross and similar providers)."
+    },
+    {
+      "id": "heat-and-cold",
+      "name": "Heat and cold emergencies",
+      "text": "Heat exhaustion causes heavy sweating, weakness, dizziness and nausea. Move the person to a cool place, loosen clothing, apply cool wet cloths, and give water if they are alert. Heat stroke is an emergency: confusion, hot skin, collapse or very high body temperature. Call emergency services and cool the person rapidly with water, fans and ice packs while waiting. For hypothermia, move the person out of the cold, remove wet clothing, insulate them from the ground, and warm the body gradually. Give warm drinks only if they are fully alert. Frostbite: warm the area in water around 37-39 C, do not rub it, and do not rewarm if there is a risk of refreezing.",
+      "sourceUrl": "https://www.ready.gov/heat",
+      "license": "Public domain (U.S. Government work) — summary",
+      "attribution": "Based on ready.gov and CDC public-domain guidance."
+    },
+    {
+      "id": "water-purification",
+      "name": "Water purification and storage",
+      "text": "Assume unknown or flood water is contaminated. Boiling is the most reliable method: bring water to a rolling boil for at least 1 minute (3 minutes at high altitude), then let it cool. If boiling is not possible, filter cloudy water through a clean cloth first, then use chlorine or iodine disinfection exactly as the product label instructs, allowing the required contact time. A certified water filter can remove many pathogens but check its ratings. Store treated water in clean, covered containers and rotate it. Do not drink water that has an unusual smell or color if you can avoid it. For emergencies, store at least 1 gallon (about 4 liters) per person per day for drinking and basic hygiene.",
+      "sourceUrl": "https://www.ready.gov/water",
+      "license": "Public domain (U.S. Government work) — summary",
+      "attribution": "Based on ready.gov and CDC public-domain guidance."
+    },
+    {
+      "id": "food-safety",
+      "name": "Food safety in emergencies",
+      "text": "Keep perishable food out of the temperature danger zone (about 4-60 C or 40-140 F). Refrigerate leftovers promptly and cook meat, poultry, eggs and seafood to safe internal temperatures. During a power outage, keep refrigerator and freezer doors closed as much as possible; a full freezer keeps food safe longer. Discard food that has been above 4 C for more than about 2 hours, or any food with an unusual smell, color or texture. Throw away cans that are bulging, leaking, deeply dented or rusty, and never eat food from flooded gardens without guidance. When in doubt, throw it out.",
+      "sourceUrl": "https://www.cdc.gov/food-safety/",
+      "license": "Public domain (U.S. Government work) — summary",
+      "attribution": "Based on CDC and ready.gov public-domain guidance."
+    },
+    {
+      "id": "fire-safety",
+      "name": "Fire safety and extinguishers",
+      "text": "Only fight a small, contained fire and only if you have a clear escape route behind you. Use a fire extinguisher with the PASS method: Pull the pin, Aim at the base of the fire, Squeeze the handle, Sweep from side to side. For a grease fire in a pan, smother it with a lid or use a fire blanket; never pour water on it. If a fire grows, get out, stay out, and call emergency services. Crawl low under smoke and feel doors before opening them. Test smoke alarms regularly and plan two ways out of every room.",
+      "sourceUrl": "https://www.ready.gov/fire",
+      "license": "Public domain (U.S. Government work) — summary",
+      "attribution": "Based on ready.gov and Fire Administration public-domain guidance."
+    },
+    {
+      "id": "shelter-and-warmth",
+      "name": "Shelter and warmth",
+      "text": "Your priorities are protection from wind, rain and cold, then insulation from the ground. Layer clothing, stay dry, and avoid sweating. Build or choose shelter that blocks wind and keeps you off the ground; add dry leaves, branches or a foam mat for insulation. Never burn charcoal indoors or use a generator indoors because of carbon monoxide. If you use a fire, keep it ventilated and supervise it. Share body heat and use blankets or reflective space blankets. If you are lost, staying put in a safe shelter is often better than wandering, as long as you can signal for help.",
+      "sourceUrl": "https://www.ready.gov/kit",
+      "license": "Public domain (U.S. Government work) — summary",
+      "attribution": "Based on ready.gov public-domain guidance."
+    },
+    {
+      "id": "navigation-without-gps",
+      "name": "Navigation without GPS",
+      "text": "If you have a map and compass, orient the map and take a bearing before moving. Without tools, the sun rises in the east and sets in the west; at local noon it is roughly south in the Northern Hemisphere and north in the Southern Hemisphere. A shadow-stick method can help estimate direction. At night, Polaris (the North Star) is close to north in the Northern Hemisphere. Follow terrain carefully: streams usually flow downhill toward larger water bodies, but they can lead into cliffs or dense bush. Tell someone your route and expected return time. If you are lost, stop, stay calm, and stay put if people know where to look for you.",
+      "sourceUrl": "",
+      "license": "Original summary",
+      "attribution": "Written for this app from general navigation knowledge."
+    },
+    {
+      "id": "emergency-signals",
+      "name": "Emergency signals",
+      "text": "Three of anything is a common distress signal: three whistle blasts, three flashes, or three fires. Use a whistle before shouting because it carries farther and conserves energy. A signal mirror or any shiny object can be used to reflect sunlight toward aircraft or distant people. On the ground, make large SOS letters or a big triangle of contrasting material in an open area. At night, use a flashlight or a safe, controlled fire. Wear bright colors, stay near open ground, and make yourself visible. Do not set uncontrolled fires.",
+      "sourceUrl": "https://www.ready.gov/kit",
+      "license": "Public domain (U.S. Government work) — summary",
+      "attribution": "Based on ready.gov public-domain guidance."
+    },
+    {
+      "id": "emergency-kit",
+      "name": "Emergency kit",
+      "text": "A basic kit should cover at least 3 days. Include drinking water (about 1 gallon or 4 liters per person per day), non-perishable food and a manual can opener, prescription medicines, a first-aid kit, a flashlight with spare batteries, a battery or hand-crank radio, a power bank, copies of important documents, cash, a multi-tool, matches or a lighter, a whistle, dust masks, and hygiene items. Add supplies for infants, older adults, pets and people with disabilities. Keep a smaller kit in your vehicle and check expiration dates twice a year.",
+      "sourceUrl": "https://www.ready.gov/kit",
+      "license": "Public domain (U.S. Government work) — summary",
+      "attribution": "Based on ready.gov public-domain guidance."
+    },
+    {
+      "id": "hygiene-and-sanitation",
+      "name": "Hygiene and sanitation",
+      "text": "Wash hands with soap and clean water for at least 20 seconds, especially before eating and after using the toilet. If water is limited, use an alcohol-based hand sanitizer. Keep drinking water containers clean and covered. Build a latrine at least 30 meters from water sources and downhill from them. Bury human waste and keep it away from food preparation areas. Dispose of garbage in sealed bags and keep food covered. During illness or emergencies, prioritize hand hygiene, safe water, and safe disposal of waste to prevent disease.",
+      "sourceUrl": "https://www.cdc.gov/handwashing/",
+      "license": "Public domain (U.S. Government work) — summary",
+      "attribution": "Based on CDC public-domain guidance."
+    },
+    {
+      "id": "poisoning",
+      "name": "Poisoning",
+      "text": "Call your local poison control center or emergency number immediately. Have the container, label or plant sample ready and tell them what was swallowed, inhaled or touched, how much, and when. Do not induce vomiting unless a professional tells you to. If the person is unconscious or not breathing normally, call emergency services. For inhaled poison, move the person to fresh air and avoid entering a dangerous area yourself. For skin or eye exposure, flush with plenty of water for 15-20 minutes. Keep the person calm and monitor their breathing until help arrives.",
+      "sourceUrl": "https://www.poison.org",
+      "license": "Original summary; see attribution",
+      "attribution": "Based on public poison-control guidance (America's Poison Centers and similar services)."
+    },
+    {
+      "id": "severe-allergic-reaction",
+      "name": "Severe allergic reaction",
+      "text": "A severe allergic reaction (anaphylaxis) can cause swelling of the face or throat, trouble breathing, hives, vomiting, dizziness or collapse. If the person has a prescribed epinephrine auto-injector, use it immediately in the outer thigh and call emergency services. Lay the person flat with their legs raised unless they are having trouble breathing, in which case let them sit up. A second dose may be given only if a professional or the prescription instructions say so. Antihistamines do not treat a severe reaction and must not delay epinephrine or emergency care. Keep the person under observation because symptoms can return.",
+      "sourceUrl": "https://www.foodallergy.org/",
+      "license": "Original summary; see attribution",
+      "attribution": "Based on public anaphylaxis guidance (Food Allergy Research & Education and similar organizations)."
+    },
+    {
+      "id": "weather-hazards",
+      "name": "Weather hazards",
+      "text": "Thunderstorms: go indoors and stay away from windows, water and tall trees; wait at least 30 minutes after the last thunder. Tornadoes: go to a basement or the lowest floor, in an interior room away from windows, and protect your head. Floods: move to higher ground and never walk or drive through moving water; even shallow fast water can sweep a vehicle away. Wildfires: follow evacuation orders early, close windows and vents, and wear an N95 mask if smoke is present. Earthquakes: drop, cover and hold on; if outdoors, move away from buildings and power lines.",
+      "sourceUrl": "https://www.ready.gov/tornadoes",
+      "license": "Public domain (U.S. Government work) — summary",
+      "attribution": "Based on ready.gov public-domain guidance."
+    },
+    {
+      "id": "emergency-plan",
+      "name": "Make an emergency plan",
+      "text": "Discuss with your household how you will get alerts, where you will meet, and who to contact if you are separated. Save an out-of-area contact because local lines may be overloaded. Learn two evacuation routes from your home and neighborhood. Keep copies of important documents in a waterproof bag and store digital copies securely. Know how to shut off water, gas and electricity only if authorities instruct you to do so. Plan for children, older adults, pets and people who need extra help. Practice the plan and review it at least once a year.",
+      "sourceUrl": "https://www.ready.gov/plan",
+      "license": "Public domain (U.S. Government work) — summary",
+      "attribution": "Based on ready.gov public-domain guidance."
+    }
+  ]
+}

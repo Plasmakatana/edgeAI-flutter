@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "packs": [
+    {
+      "id": "core",
+      "version": 1,
+      "name": "Offline essentials",
+      "description": "Practical first aid, emergency preparedness, water/food safety, fire, shelter, navigation and hygiene guides. Small enough to ship with the app.",
+      "license": "Original summaries based on public-domain guidance (ready.gov, CDC). See per-document attribution.",
+      "attribution": "U.S. ready.gov and CDC public-domain guidance; original summaries.",
+      "approxBytes": 45000,
+      "bundled": true,
+      "source": "asset",
+      "assetPath": "assets/packs/core_v1.json"
+    },
+    {
+      "id": "wikipedia-essentials",
+      "version": 1,
+      "name": "Wikipedia essentials",
+      "description": "A curated offline library of general-knowledge, health, science, geography and practical-skill articles downloaded from Wikipedia on demand.",
+      "license": "CC BY-SA 4.0",
+      "attribution": "Wikipedia contributors, licensed under CC BY-SA 4.0. Per-article source URLs are stored in the library.",
+      "approxBytes": 8000000,
+      "bundled": false,
+      "source": "wikimedia",
+      "project": "en.wikipedia.org",
+      "titlesAsset": "assets/packs/wikipedia_essentials_titles.json"
+    }
+  ]
+}

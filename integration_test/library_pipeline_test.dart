@@ -7,6 +7,8 @@ import 'package:integration_test/integration_test.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart' as sf;
 import 'package:testapp/services/knowledge_library.dart';
+import 'package:testapp/services/content_pack_service.dart';
+import 'package:testapp/services/map_service.dart';
 
 /// End-to-end pipeline check on a real device: write sample files, add them
 /// to the library, retrieve, then clean up (never touches pre-existing docs).
@@ -87,5 +89,28 @@ void main() {
     }
     expect(library.documents.length, before);
     await dir.delete(recursive: true);
+  });
+
+  testWidgets('bundled content catalog and map cache initialize',
+      (tester) async {
+    final packs = await ContentPackService.instance.loadCatalog();
+    expect(packs, isNotEmpty);
+    expect(packs.any((pack) => pack.bundled), isTrue);
+
+    final tmp = await getTemporaryDirectory();
+    final root =
+        Directory('${tmp.path}/map_test_${DateTime.now().millisecondsSinceEpoch}');
+    await root.create(recursive: true);
+    MapService.debugRootDirectory = root;
+    MapService.instance.resetForTest();
+    try {
+      await MapService.instance.initialize();
+      expect(MapService.instance.isLoaded, isTrue);
+      expect(await Directory('${root.path}/tiles').exists(), isTrue);
+    } finally {
+      MapService.instance.resetForTest();
+      MapService.debugRootDirectory = null;
+      await root.delete(recursive: true);
+    }
   });
 }

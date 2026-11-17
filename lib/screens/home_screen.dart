@@ -10,6 +10,8 @@ import '../widgets/task_progress_dialog.dart';
 import 'chat_screen.dart';
 import 'download_screen.dart';
 import 'library_screen.dart';
+import 'map_screen.dart';
+import 'offline_content_screen.dart';
 import 'settings_screen.dart';
 
 /// Landing screen. Shows "start talking" when a model is installed, or the
@@ -55,9 +57,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _onDownload(BuildContext context) async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const DownloadScreen()),
-    );
+    await Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => const DownloadScreen()));
     if (!mounted) return;
     await _checkModel();
     if (!mounted) return;
@@ -69,9 +70,9 @@ class _HomeScreenState extends State<HomeScreen> {
       await ModelService.instance.locateAndInstallModel();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not use that model: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not use that model: $e')));
       }
       return;
     }
@@ -83,9 +84,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _goToChatIfReady() {
     if (_modelInstalled == true) {
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const ChatScreen()),
-      );
+      Navigator.of(context)
+          .push(MaterialPageRoute(builder: (_) => const ChatScreen()));
     }
   }
 
@@ -108,7 +108,8 @@ class _HomeScreenState extends State<HomeScreen> {
     }
     setState(() => _addingDocument = true);
     try {
-      final embed = SettingsService.instance.semanticSearch.value &&
+      final embed =
+          SettingsService.instance.semanticSearch.value &&
           EmbedderService.instance.isReady;
       final doc = await runWithProgressDialog(
         // ignore: use_build_context_synchronously
@@ -121,17 +122,16 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       );
       if (!mounted) return;
-      setState(
-        () => _docCount = KnowledgeLibrary.instance.documents.length,
-      );
+      setState(() => _docCount = KnowledgeLibrary.instance.documents.length);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Added "${doc.name}" (${doc.chunkCount} chunks).')),
+        SnackBar(
+          content: Text('Added "${doc.name}" (${doc.chunkCount} chunks).'),
+        ),
       );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not add file: $e')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Could not add file: $e')));
       }
     } finally {
       if (mounted) setState(() => _addingDocument = false);
@@ -139,11 +139,22 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _openLibrary() async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const LibraryScreen()),
-    );
+    await Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => const LibraryScreen()));
     if (!mounted) return;
     setState(() => _docCount = KnowledgeLibrary.instance.documents.length);
+  }
+
+  Future<void> _openOfflineContent() async {
+    await Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => const OfflineContentScreen()));
+    if (!mounted) return;
+    setState(() => _docCount = KnowledgeLibrary.instance.documents.length);
+  }
+
+  Future<void> _openMap() async {
+    await Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => const MapScreen()));
   }
 
   @override
@@ -160,108 +171,138 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: const Icon(Icons.settings_outlined),
             tooltip: 'Settings',
             onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const SettingsScreen()),
-              );
+              Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
             },
           ),
         ],
       ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Icon(
-                Icons.smart_toy_outlined,
-                size: 80,
-                color: theme.colorScheme.primary,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: constraints.maxHeight - 48 > 0
+                      ? constraints.maxHeight - 48
+                      : 0,
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Icon(
+                      Icons.smart_toy_outlined,
+                      size: 80,
+                      color: theme.colorScheme.primary,
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      'Welcome',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.headlineMedium,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      hasModel
+                          ? 'Your Gemma 4 E2B model is ready. Start a conversation!'
+                          : (checking
+                                ? 'Checking for installed model...'
+                                : 'To get started, install the Gemma 4 E2B model '
+                                      'or locate one already on your device.'),
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 48),
+                    if (hasModel) ...[
+                      FilledButton.icon(
+                        onPressed: _goToChatIfReady,
+                        icon: const Icon(Icons.chat_bubble_outline),
+                        label: const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                          child: Text(
+                            'Start talking',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      OutlinedButton.icon(
+                        onPressed: _addingDocument ? null : _onAddDocument,
+                        icon: const Icon(Icons.upload_file),
+                        label: const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                          child: Text(
+                            'Add document',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextButton.icon(
+                        onPressed: _openLibrary,
+                        icon: const Icon(Icons.folder_open),
+                        label: Text(
+                          _docCount == 0
+                              ? 'Document library'
+                              : 'Document library ($_docCount)',
+                        ),
+                      ),
+                    ] else ...[
+                      FilledButton.icon(
+                        onPressed: () => _onDownload(context),
+                        icon: const Icon(Icons.download),
+                        label: const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                          child: Text(
+                            'Download model',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      OutlinedButton.icon(
+                        onPressed: _onLocate,
+                        icon: const Icon(Icons.folder_open),
+                        label: const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                          child: Text(
+                            'Locate model',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 8),
+                    TextButton.icon(
+                      onPressed: _openOfflineContent,
+                      icon: const Icon(Icons.menu_book_outlined),
+                      label: const Text('Offline content'),
+                    ),
+                    TextButton.icon(
+                      onPressed: _openMap,
+                      icon: const Icon(Icons.map_outlined),
+                      label: const Text('Offline map'),
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 24),
-              Text(
-                'Welcome',
-                textAlign: TextAlign.center,
-                style: theme.textTheme.headlineMedium,
-              ),
-              const SizedBox(height: 12),
-              Text(
-                hasModel
-                    ? 'Your Gemma 4 E2B model is ready. Start a conversation!'
-                    : (checking
-                        ? 'Checking for installed model...'
-                        : 'To get started, install the Gemma 4 E2B model or '
-                            'locate one already on your device.'),
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium,
-              ),
-              const SizedBox(height: 48),
-              if (hasModel) ...[
-                FilledButton.icon(
-                  onPressed: _goToChatIfReady,
-                  icon: const Icon(Icons.chat_bubble_outline),
-                  label: const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 16),
-                    child: Text(
-                      'Start talking',
-                      style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                OutlinedButton.icon(
-                  onPressed: _addingDocument ? null : _onAddDocument,
-                  icon: const Icon(Icons.upload_file),
-                  label: const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 16),
-                    child: Text(
-                      'Add document',
-                      style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextButton.icon(
-                  onPressed: _openLibrary,
-                  icon: const Icon(Icons.folder_open),
-                  label: Text(
-                    _docCount == 0
-                        ? 'Document library'
-                        : 'Document library ($_docCount)',
-                  ),
-                ),
-              ] else ...[
-                FilledButton.icon(
-                  onPressed: () => _onDownload(context),
-                  icon: const Icon(Icons.download),
-                  label: const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 16),
-                    child: Text(
-                      'Download model',
-                      style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                OutlinedButton.icon(
-                  onPressed: _onLocate,
-                  icon: const Icon(Icons.folder_open),
-                  label: const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 16),
-                    child: Text(
-                      'Locate model',
-                      style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                ),
-              ],
-            ],
-          ),
+            );
+          },
         ),
       ),
     );

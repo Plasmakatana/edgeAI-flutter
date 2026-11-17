@@ -6,6 +6,7 @@ import '../services/knowledge_library.dart';
 import '../services/settings_service.dart';
 import '../services/text_extractor.dart';
 import '../widgets/task_progress_dialog.dart';
+import 'offline_content_screen.dart';
 
 /// Manages the user's document library: added files, chunk counts, deletion,
 /// and the optional semantic-search layer.
@@ -44,12 +45,13 @@ class _LibraryScreenState extends State<LibraryScreen> {
     });
   }
 
-  bool get _needsIndexing => KnowledgeLibrary.instance.documents
-      .any((d) => d.embeddings == null);
+  bool get _needsIndexing =>
+      KnowledgeLibrary.instance.documents.any((d) => d.embeddings == null);
 
   void _snack(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _addFile() async {
@@ -135,10 +137,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
               '${EmbedderService.downloadSizeLabel}',
               p / 100 * 0.9,
             ),
-            onTokenizerProgress: (p) => report(
-              'Downloading tokenizer ($p%)',
-              0.9 + p / 100 * 0.1,
-            ),
+            onTokenizerProgress: (p) =>
+                report('Downloading tokenizer ($p%)', 0.9 + p / 100 * 0.1),
           ),
         );
       } catch (e) {
@@ -198,7 +198,22 @@ class _LibraryScreenState extends State<LibraryScreen> {
     final theme = Theme.of(context);
     final docs = KnowledgeLibrary.instance.documents;
     return Scaffold(
-      appBar: AppBar(title: const Text('Document library')),
+      appBar: AppBar(
+        title: const Text('Document library'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.menu_book_outlined),
+            tooltip: 'Offline content packs',
+            onPressed: () async {
+              await Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const OfflineContentScreen()),
+              );
+              if (!mounted) return;
+              setState(() {});
+            },
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _busy ? null : _addFile,
         icon: const Icon(Icons.upload_file),
@@ -307,9 +322,9 @@ class _SemanticCard extends StatelessWidget {
     final status = !enabled
         ? 'Off — plain keyword search.'
         : !embedderInstalled
-            ? 'On — offline word-overlap rerank '
-                '(download the model for true semantics).'
-            : 'On — on-device embeddings over $chunkCount chunks.';
+        ? 'On — offline word-overlap rerank '
+              '(download the model for true semantics).'
+        : 'On — on-device embeddings over $chunkCount chunks.';
     return Card(
       child: Padding(
         padding: const EdgeInsets.only(bottom: 8),

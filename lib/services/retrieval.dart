@@ -30,19 +30,131 @@ class ScoredChunk {
 
 /// English stop words filtered out of queries and chunks before scoring.
 const Set<String> kStopWords = {
-  'a', 'about', 'above', 'after', 'again', 'against', 'all', 'am', 'an', 'and',
-  'any', 'are', 'as', 'at', 'be', 'because', 'been', 'before', 'being', 'below',
-  'between', 'both', 'but', 'by', 'can', 'could', 'did', 'do', 'does', 'doing',
-  'down', 'during', 'each', 'few', 'for', 'from', 'further', 'had', 'has',
-  'have', 'having', 'he', 'her', 'here', 'hers', 'herself', 'him', 'himself',
-  'his', 'how', 'i', 'if', 'in', 'into', 'is', 'it', 'its', 'itself', 'just',
-  'me', 'more', 'most', 'my', 'myself', 'no', 'nor', 'not', 'now', 'of', 'off',
-  'on', 'once', 'only', 'or', 'other', 'our', 'ours', 'ourselves', 'out', 'over',
-  'own', 'same', 'she', 'should', 'so', 'some', 'such', 'than', 'that', 'the',
-  'their', 'theirs', 'them', 'themselves', 'then', 'there', 'these', 'they',
-  'this', 'those', 'through', 'to', 'too', 'under', 'until', 'up', 'very',
-  'was', 'we', 'were', 'what', 'when', 'where', 'which', 'while', 'who', 'whom',
-  'why', 'will', 'with', 'would', 'you', 'your', 'yours', 'yourself',
+  'a',
+  'about',
+  'above',
+  'after',
+  'again',
+  'against',
+  'all',
+  'am',
+  'an',
+  'and',
+  'any',
+  'are',
+  'as',
+  'at',
+  'be',
+  'because',
+  'been',
+  'before',
+  'being',
+  'below',
+  'between',
+  'both',
+  'but',
+  'by',
+  'can',
+  'could',
+  'did',
+  'do',
+  'does',
+  'doing',
+  'down',
+  'during',
+  'each',
+  'few',
+  'for',
+  'from',
+  'further',
+  'had',
+  'has',
+  'have',
+  'having',
+  'he',
+  'her',
+  'here',
+  'hers',
+  'herself',
+  'him',
+  'himself',
+  'his',
+  'how',
+  'i',
+  'if',
+  'in',
+  'into',
+  'is',
+  'it',
+  'its',
+  'itself',
+  'just',
+  'me',
+  'more',
+  'most',
+  'my',
+  'myself',
+  'no',
+  'nor',
+  'not',
+  'now',
+  'of',
+  'off',
+  'on',
+  'once',
+  'only',
+  'or',
+  'other',
+  'our',
+  'ours',
+  'ourselves',
+  'out',
+  'over',
+  'own',
+  'same',
+  'she',
+  'should',
+  'so',
+  'some',
+  'such',
+  'than',
+  'that',
+  'the',
+  'their',
+  'theirs',
+  'them',
+  'themselves',
+  'then',
+  'there',
+  'these',
+  'they',
+  'this',
+  'those',
+  'through',
+  'to',
+  'too',
+  'under',
+  'until',
+  'up',
+  'very',
+  'was',
+  'we',
+  'were',
+  'what',
+  'when',
+  'where',
+  'which',
+  'while',
+  'who',
+  'whom',
+  'why',
+  'will',
+  'with',
+  'would',
+  'you',
+  'your',
+  'yours',
+  'yourself',
 };
 
 /// Content words: lowercased, no stop words, no stemming (used for the
@@ -66,7 +178,9 @@ String stem(String word) {
   var w = word;
   if (w.length > 4 && w.endsWith('ies')) {
     w = '${w.substring(0, w.length - 3)}y';
-  } else if (w.length > 3 && w.endsWith('s') && !w.endsWith('ss') &&
+  } else if (w.length > 3 &&
+      w.endsWith('s') &&
+      !w.endsWith('ss') &&
       !w.endsWith('us')) {
     w = w.substring(0, w.length - 1);
   }
@@ -88,7 +202,15 @@ String stem(String word) {
 // ---------------------------------------------------------------------------
 
 /// BM25 scores of [query] against every chunk. Zeros mean no keyword overlap.
-List<double> keywordScores(String query, List<String> chunks) {
+///
+/// [tokenizedChunks] lets callers reuse a cached tokenization (important when
+/// the library contains thousands of built-in chunks); when omitted the chunks
+/// are tokenized on the fly.
+List<double> keywordScores(
+  String query,
+  List<String> chunks, {
+  List<List<String>>? tokenizedChunks,
+}) {
   final queryTerms = tokenize(query).toSet();
   final scores = List<double>.filled(chunks.length, 0);
   if (queryTerms.isEmpty || chunks.isEmpty) return scores;
@@ -96,10 +218,11 @@ List<double> keywordScores(String query, List<String> chunks) {
   const k1 = 1.2;
   const b = 0.4;
 
-  final tokenized = chunks.map(tokenize).toList();
+  final tokenized = tokenizedChunks ?? chunks.map(tokenize).toList();
   final lengths = tokenized.map((t) => t.length).toList();
-  final avgLength =
-      lengths.isEmpty ? 1.0 : lengths.reduce((a, c) => a + c) / lengths.length;
+  final avgLength = lengths.isEmpty
+      ? 1.0
+      : lengths.reduce((a, c) => a + c) / lengths.length;
   if (avgLength == 0) return scores;
 
   final n = chunks.length;
@@ -176,7 +299,8 @@ List<double> embeddingScores(
     return List<double>.filled(n, 0);
   }
   return [
-    for (final e in chunkEmbeddings) max(0, cosineSimilarity(queryEmbedding, e)),
+    for (final e in chunkEmbeddings)
+      max(0, cosineSimilarity(queryEmbedding, e)),
   ];
 }
 
@@ -205,9 +329,7 @@ List<double> heuristicScores(String query, List<String> chunks) {
   // broadly: a chunk matching one word out of four scores proportionally.
   final queryWordGrams = <String, Set<String>>{};
   for (final word in contentWords(query)) {
-    queryWordGrams.putIfAbsent(word, () => <String>{}).addAll(
-      _ngramSet(word),
-    );
+    queryWordGrams.putIfAbsent(word, () => <String>{}).addAll(_ngramSet(word));
   }
   if (queryWordGrams.isEmpty) return List<double>.filled(n, 0);
 
@@ -215,8 +337,9 @@ List<double> heuristicScores(String query, List<String> chunks) {
   final weights = <String, double>{};
   for (final grams in queryWordGrams.values) {
     for (final gram in grams) {
-      weights[gram] =
-          df.containsKey(gram) ? log((n + 1) / (df[gram]! + 1)) + 1 : 1.0;
+      weights[gram] = df.containsKey(gram)
+          ? log((n + 1) / (df[gram]! + 1)) + 1
+          : 1.0;
     }
   }
   final total = weights.values.reduce((a, c) => a + c);
@@ -273,6 +396,7 @@ Set<String> _ngramSet(String text) {
 List<ScoredChunk> rankChunks({
   required String query,
   required List<String> chunks,
+  List<List<String>>? tokenizedChunks,
   bool semantic = false,
   List<double>? queryEmbedding,
   List<List<double>>? chunkEmbeddings,
@@ -281,7 +405,11 @@ List<ScoredChunk> rankChunks({
 }) {
   if (chunks.isEmpty) return const [];
 
-  final keyword = keywordScores(query, chunks);
+  final keyword = keywordScores(
+    query,
+    chunks,
+    tokenizedChunks: tokenizedChunks,
+  );
   final maxKeyword = keyword.fold<double>(0, max);
 
   List<double> semanticScores;
@@ -292,7 +420,12 @@ List<ScoredChunk> rankChunks({
     floor = double.infinity;
     weight = 0;
   } else if (queryEmbedding != null) {
-    semanticScores = embeddingScores(query, chunks, queryEmbedding, chunkEmbeddings);
+    semanticScores = embeddingScores(
+      query,
+      chunks,
+      queryEmbedding,
+      chunkEmbeddings,
+    );
     floor = 0.25; // cosine below this is noise for a 768-d text embedder
     weight = semanticWeight;
   } else {
@@ -309,12 +442,10 @@ List<ScoredChunk> rankChunks({
   final keywordOrder = <int>[];
   final semanticOrder = <int>[];
   {
-    final kwRanked = [
-      for (var i = 0; i < chunks.length; i++) i,
-    ]..sort((a, b) => keyword[b].compareTo(keyword[a]));
-    final semRanked = [
-      for (var i = 0; i < chunks.length; i++) i,
-    ]..sort((a, b) => semanticScores[b].compareTo(semanticScores[a]));
+    final kwRanked = [for (var i = 0; i < chunks.length; i++) i]
+      ..sort((a, b) => keyword[b].compareTo(keyword[a]));
+    final semRanked = [for (var i = 0; i < chunks.length; i++) i]
+      ..sort((a, b) => semanticScores[b].compareTo(semanticScores[a]));
     for (final i in kwRanked) {
       if (maxKeyword > 0 && keyword[i] > 0) keywordOrder.add(i);
     }
@@ -347,10 +478,9 @@ List<ScoredChunk> rankChunks({
         index: i,
         keywordScore: keyword[i],
         semanticScore: semanticScores[i],
-        score: (1 - weight) *
-                (maxKeyword > 0 ? keyword[i] / maxKeyword : 0.0) +
-            weight *
-                (maxSemantic > 0 ? semanticScores[i] / maxSemantic : 0.0),
+        score:
+            (1 - weight) * (maxKeyword > 0 ? keyword[i] / maxKeyword : 0.0) +
+            weight * (maxSemantic > 0 ? semanticScores[i] / maxSemantic : 0.0),
       ),
   ];
   // Blended score decides prompt order; exact matches win ties so the most

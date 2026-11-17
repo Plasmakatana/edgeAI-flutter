@@ -20,22 +20,32 @@ flutter build ios        # build iOS
 
 ## Structure
 
-- `lib/main.dart` — app entrypoint; initializes FlutterGemma, applies persisted theme
+- `lib/main.dart` — app entrypoint; initializes FlutterGemma, loads settings, seeds bundled content packs, starts map-cache cleanup
 - `lib/services/model_service.dart` — Gemma model lifecycle (download, locate, load, chat); `generateResponse` accepts retrieved context
-- `lib/services/settings_service.dart` — persisted theme + TTS + semantic-search preferences (shared_preferences)
+- `lib/services/settings_service.dart` — persisted theme, TTS, semantic-search, and map tile-source preferences (shared_preferences)
 - `lib/services/text_extractor.dart` — file → text (txt/md/csv/json/log, html, pdf, docx; rejects legacy .doc)
 - `lib/services/chunker.dart` — text → retrieval chunks (~700 chars, overlap)
 - `lib/services/retrieval.dart` — BM25 keyword layer + optional semantic layer (model embeddings, else n-gram fallback), top-5 ranking
-- `lib/services/knowledge_library.dart` — persisted document library (JSON) + retrieval entry point
+- `lib/services/knowledge_library.dart` — persisted document library (JSON + float32 embedding sidecars) + retrieval entry point; batch/pack APIs
+- `lib/services/embedding_codec.dart` — float32 little-endian embedding sidecar codec
 - `lib/services/embedder_service.dart` — optional Gecko-110M embedder install/index/query
 - `lib/services/prompt_builder.dart` — grounded-prompt assembly with context caps
-- `lib/screens/home_screen.dart` — root landing screen (Start talking / Add document / library / download / locate)
+- `lib/services/content_pack_service.dart` — bundled/downloadable knowledge pack catalog, install/remove/seed, Wikipedia fetch + ingest
+- `lib/services/wikimedia_client.dart` — MediaWiki Action API extract client (full extracts, retries, truncation)
+- `lib/services/tile_math.dart` — slippy-map tile math (lon/lat ↔ tile, ranges, counts, URL templates)
+- `lib/services/map_service.dart` — disk tile cache, region download/management, TTL + 1 GB LRU cleanup (isolate)
+- `lib/services/offline_tile_provider.dart` — flutter_map tile provider bridging to `MapService`
+- `lib/screens/home_screen.dart` — root landing screen (chat / add document / library / offline content / offline map / download / locate)
 - `lib/screens/library_screen.dart` — document library management + semantic-search enable flow
+- `lib/screens/offline_content_screen.dart` — bundled/downloadable knowledge pack catalog UI
+- `lib/screens/map_screen.dart` — offline-capable map viewer, region downloads/pins/deletion
 - `lib/screens/download_screen.dart` — download/progress screen
-- `lib/screens/chat_screen.dart` — streaming chat UI + mic input (speech_to_text) + TTS replies + library grounding
+- `lib/screens/chat_screen.dart` — streaming chat UI + mic input (speech_to_text) + TTS replies + library grounding + source citations
 - `lib/widgets/task_progress_dialog.dart` — modal progress-dialog helper for background tasks
-- `test/` — widget tests + unit tests (chunker, retrieval, prompt builder, extractor)
-- `integration_test/library_pipeline_test.dart` — on-device add/retrieve/remove pipeline test
+- `assets/packs/` — bundled core pack, pack catalog, Wikipedia title list
+- `test/` — widget tests + unit tests (chunker, retrieval, prompt builder, extractor, embeddings, content packs, Wikimedia client, tile math, map cleanup, map HTTP retry/blocking, settings migration)
+- `integration_test/library_pipeline_test.dart` — on-device add/retrieve/remove pipeline test plus bundled-catalog/map-cache initialization
+- `REPORT.md` - project report with citations (headings mirror SAMPLE_REPORT.md)
 - `analysis_options.yaml` — lints (flutter_lints)
 - `pubspec.yaml` — dependencies
 - `PROGRESS.md` — running log of changes for future context
@@ -44,17 +54,29 @@ flutter build ios        # build iOS
 
 Runtime:
 - `flutter_gemma` + `flutter_gemma_litertlm` — model runtime
-- `file_picker`, `path_provider`, `path` — model location/copy
-- `  speech_to_text` — mic / voice input
+- `flutter_gemma_embeddings` — optional Gecko embedder
+- `file_picker`, `path_provider`, `path` — model/doc location, persistent storage
+- `speech_to_text` — mic / voice input
 - `flutter_tts` — on-device text-to-speech replies
-- `shared_preferences` — persisted settings (theme, tts)
+- `shared_preferences` — persisted settings
 - `syncfusion_flutter_pdf` — PDF text extraction (pure Dart)
 - `archive`, `xml` — docx unzip + parse
+- `http`, `crypto` — Wikipedia/pack downloads, SHA-1 tile source ids, SHA-256 pack checks
+- `flutter_map`, `latlong2` — offline-capable map UI
 
 ## Notes
 
 - No CI, codegen, or migrations configured
-- No env files or secrets required
+- No env files or secrets required. The local git remote currently contains a
+  legacy embedded GitHub credential; rotate it and use a credential helper.
+  Never commit tokens.
+- Offline map defaults to `https://tile.openstreetmap.de/{z}/{x}/{y}.png`;
+  the template is user-configurable. The legacy OSM main URL is migrated to
+  this default because `tile.openstreetmap.org` returns HTTP 200 "Access
+  blocked" images to the app. OSM.de/OSM tile usage policies apply to bulk
+  region downloads.
+- Map cache: transient tiles expire after 14 days, downloaded regions after
+  180 days (pins exempt), 1 GB cap evicting oldest-first down to 800 MB.
 
 ## Platform / architecture constraints (IMPORTANT)
 

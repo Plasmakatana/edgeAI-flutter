@@ -27,8 +27,7 @@ void main() {
     });
 
     test('returns all zeros for an unrelated query', () {
-      expect(keywordScores('quantum chromodynamics', _corpus),
-          everyElement(0));
+      expect(keywordScores('quantum chromodynamics', _corpus), everyElement(0));
     });
 
     test('rewards exact phrases over scattered keywords', () {
@@ -37,7 +36,9 @@ void main() {
         _carDoc,
       ];
       final scores = keywordScores(
-          'electric cars use lithium batteries', chunks);
+        'electric cars use lithium batteries',
+        chunks,
+      );
       expect(scores[1], greaterThan(scores[0]));
     });
   });
@@ -52,7 +53,9 @@ void main() {
     test('keyword-only layer returns empty for unrelated queries', () {
       // No context is better than misleading context: chat stays plain.
       final ranked = rankChunks(
-          query: 'quantum chromodynamics', chunks: _corpus);
+        query: 'quantum chromodynamics',
+        chunks: _corpus,
+      );
       expect(ranked, isEmpty);
     });
 
@@ -149,6 +152,40 @@ void main() {
       );
       expect(ranked, isEmpty);
     });
+
+    test('pre-tokenized chunks produce the same ranking', () {
+      final tokenized = [for (final chunk in _corpus) tokenize(chunk)];
+      final cached = rankChunks(
+        query: 'loyal dogs',
+        chunks: _corpus,
+        tokenizedChunks: tokenized,
+      );
+      final fresh = rankChunks(query: 'loyal dogs', chunks: _corpus);
+      expect(
+        cached.map((c) => c.index).toList(),
+        fresh.map((c) => c.index).toList(),
+      );
+      expect(
+        cached.first.keywordScore,
+        closeTo(fresh.first.keywordScore, 1e-9),
+      );
+    });
+
+    test('missing embeddings only disable that chunk, not the layer', () {
+      final ranked = rankChunks(
+        query: 'zzz qqq',
+        chunks: const ['alpha beta gamma', 'delta epsilon zeta'],
+        semantic: true,
+        queryEmbedding: const [1.0, 0.0, 0.0],
+        chunkEmbeddings: const [
+          <double>[],
+          [0.99, 0.01, 0.0],
+        ],
+      );
+      expect(ranked, isNotEmpty);
+      expect(ranked.first.index, 1);
+      expect(ranked.first.semanticScore, greaterThan(0.9));
+    });
   });
 
   group('cosineSimilarity', () {
@@ -161,10 +198,10 @@ void main() {
 
   group('heuristicScores', () {
     test('identical text outranks unrelated text', () {
-      final scores = heuristicScores(
+      final scores = heuristicScores('hello friendly world', [
         'hello friendly world',
-        ['hello friendly world', 'zxqv kwyj pfft br ap'],
-      );
+        'zxqv kwyj pfft br ap',
+      ]);
       expect(scores[0], greaterThan(scores[1]));
     });
   });

@@ -93,9 +93,8 @@ class _ChatScreenState extends State<ChatScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load model: $e')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Failed to load model: $e')));
       }
     }
   }
@@ -211,9 +210,8 @@ class _ChatScreenState extends State<ChatScreen> {
       await _ensureModelLoaded();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Model not ready: $e')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Model not ready: $e')));
       }
       return;
     }
@@ -231,8 +229,10 @@ class _ChatScreenState extends State<ChatScreen> {
     _scrollToBottom();
 
     try {
-      final stream =
-          ModelService.instance.generateResponse(text, context: sources);
+      final stream = ModelService.instance.generateResponse(
+        text,
+        context: sources,
+      );
       await for (final chunk in stream) {
         if (!mounted) return;
         setState(() {
@@ -244,11 +244,9 @@ class _ChatScreenState extends State<ChatScreen> {
               sources: sources,
             );
           } else {
-            _messages.add(_Message(
-              text: _bufferedReply,
-              isUser: false,
-              sources: sources,
-            ));
+            _messages.add(
+              _Message(text: _bufferedReply, isUser: false, sources: sources),
+            );
           }
         });
         _scrollToBottom();
@@ -312,9 +310,9 @@ class _ChatScreenState extends State<ChatScreen> {
             icon: const Icon(Icons.settings_outlined),
             tooltip: 'Settings',
             onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const SettingsScreen()),
-              );
+              Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
             },
           ),
         ],
@@ -333,7 +331,9 @@ class _ChatScreenState extends State<ChatScreen> {
                 : ListView.builder(
                     controller: _scrollController,
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 12),
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                     itemCount: _messages.length,
                     itemBuilder: (context, index) =>
                         _MessageBubble(message: _messages[index]),
@@ -345,7 +345,7 @@ class _ChatScreenState extends State<ChatScreen> {
               child: Text(
                 _lastSourceCount > 0
                     ? 'Answering from $_lastSourceCount library excerpt'
-                        '${_lastSourceCount == 1 ? '' : 's'}'
+                          '${_lastSourceCount == 1 ? '' : 's'}'
                     : 'Document library ready — ask about your files',
                 style: TextStyle(
                   fontSize: 12,
@@ -410,20 +410,14 @@ class _MessageBubble extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
         ),
         child: isUser
-            ? SelectableText(
-                message.text,
-                style: TextStyle(color: color),
-              )
+            ? SelectableText(message.text, style: TextStyle(color: color))
             : Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   _AssistantText(text: message.text, color: color),
                   if (message.sources.isNotEmpty)
-                    _SourcesView(
-                      sources: message.sources,
-                      color: color,
-                    ),
+                    _SourcesView(sources: message.sources, color: color),
                 ],
               ),
       ),
@@ -457,8 +451,9 @@ class _SourcesView extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: Text(
-              '[${i + 1}] (${sources[i].documentName})\n'
-              '${sources[i].text}',
+              '[${i + 1}] (${sources[i].documentName})'
+              '${sources[i].sourceUrl == null ? '' : '\n${sources[i].sourceUrl}'}'
+              '\n${sources[i].text}',
               style: metaStyle,
             ),
           ),
@@ -552,7 +547,9 @@ class _InputBar extends StatelessWidget {
                     borderRadius: BorderRadius.circular(24),
                   ),
                   contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 12),
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                 ),
               ),
             ),
